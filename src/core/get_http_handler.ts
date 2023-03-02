@@ -1,8 +1,9 @@
+import { type Injector } from '@stlmpp/di';
 import { type RequestHandler } from 'express';
 
-import { api_config_http_schema, type ApiConfig } from './api_config.js';
 import { format_headers } from './format-headers.js';
 import { format_query } from './format-query.js';
+import { api_config_http_schema, type ApiConfig } from './http-config.js';
 import { method_has_body } from './method-has-body.js';
 
 interface InternalHttpHandler {
@@ -24,7 +25,8 @@ function parse_path(path: string) {
 
 export async function get_http_handler(
   unparsed_config: ApiConfig,
-  path: string
+  path: string,
+  injector: Injector
 ): Promise<InternalHttpHandler> {
   const parsed_config = await api_config_http_schema.safeParseAsync(unparsed_config);
   if (!parsed_config.success) {
@@ -32,6 +34,7 @@ export async function get_http_handler(
   }
   const config = parsed_config.data;
   const { end_point, method } = parse_path(path);
+  const services = await injector.resolveMany(config.imports ?? []);
   return {
     end_point, // TODO end-point
     handler: async (req, res, next) => {
@@ -55,12 +58,15 @@ export async function get_http_handler(
       if (method_has_body(method) && config.request?.body) {
         body = await config.request.body.parseAsync(req.body);
       }
-      const { statusCode, data } = await config.handler({
-        params,
-        body,
-        headers,
-        query,
-      });
+      const { statusCode, data } = await config.handler(
+        {
+          params,
+          body,
+          headers,
+          query,
+        },
+        ...services
+      );
       res.status(statusCode).send(data);
     },
   };

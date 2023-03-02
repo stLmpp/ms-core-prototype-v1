@@ -10,7 +10,7 @@ const file = await readFile('dist/index.d.ts', { encoding: 'utf-8' });
 const lines = file.split('\n');
 
 const start_line_index = lines.findIndex((item) =>
-  item.includes('declare function apiConfig<')
+  item.includes('declare function httpConfig<')
 );
 const end_function_index = lines.findIndex((item) => item.includes('): ApiConfigInput;'));
 
@@ -28,6 +28,8 @@ const service_imports_index = function_def_lines.findIndex((item) =>
 );
 
 const SERVICE_NUMBER_OFFSET = 2;
+
+// TODO redo this because files have changed
 
 function createNewFunction(number_of_services: number): string[] {
   const def_lines = [...function_def_lines];

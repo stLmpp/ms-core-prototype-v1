@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-import { apiConfig } from '../api_config.js';
+import { httpConfig } from '../core/http-config.js';
 
-export default apiConfig({
+export default httpConfig({
   type: 'http',
   request: {},
   response: z.object({}),

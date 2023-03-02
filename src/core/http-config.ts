@@ -49,6 +49,13 @@ const api_config_queue_handler_return_object_schema = z.object({
   data: z.any(),
 });
 
+export const api_config_queue_data_schema = z.object({
+  params: z.record(z.string()).optional(),
+  query: z.record(z.string()).optional(),
+  headers: z.record(z.string()).optional(),
+  body: z.unknown().optional(),
+});
+
 export const api_config_queue_handler_return_schema =
   api_config_queue_handler_return_object_schema.or(
     api_config_queue_handler_return_object_schema.promise()
@@ -59,8 +66,6 @@ export const api_config_queue_schema = z
     handler: api_config_handler_schema.returns(api_config_queue_handler_return_schema),
     type: z.literal('queue'),
     queue: z.string(),
-    replyToQueue: z.string().optional(),
-    replyToQueueAction: z.string().optional(),
   })
   .merge(api_config_base_schema);
 
@@ -71,7 +76,7 @@ export const api_config_schema = z.discriminatedUnion('type', [
 
 export type ApiConfigInput = z.input<typeof api_config_schema>;
 
-export function apiConfig<
+export function httpConfig<
   Params extends ZodObject<Record<string, ZodString>>,
   Query extends ZodObject<Record<string, ZodString>>,
   Headers extends ZodObject<Record<string, ZodString>>,
