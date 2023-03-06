@@ -12,7 +12,19 @@ const api_config_handler_schema = z.function().args(
   })
 );
 
-const api_config_base_schema = z.object({
+const api_config_http_handler_return_object_schema = z.object({
+  statusCode: z.number(), // TODO better
+  data: z.any(),
+});
+
+export const api_config_http_handler_return_schema =
+  api_config_http_handler_return_object_schema.or(
+    api_config_http_handler_return_object_schema.promise()
+  );
+
+export const http_config_schema = z.object({
+  type: z.literal('http'),
+  handler: api_config_handler_schema.returns(api_config_http_handler_return_schema),
   request: z
     .object({
       params: z_type.optional(),
@@ -26,56 +38,12 @@ const api_config_base_schema = z.object({
   imports: z.array(z.any()).optional(),
 });
 
-const api_config_http_handler_return_object_schema = z.object({
-  statusCode: z.number(), // TODO better
-  data: z.any(),
-});
+export type HttpConfigInput = z.input<typeof http_config_schema>;
 
-export const api_config_http_handler_return_schema =
-  api_config_http_handler_return_object_schema.or(
-    api_config_http_handler_return_object_schema.promise()
-  );
-
-export const api_config_http_schema = z
-  .object({
-    type: z.literal('http'),
-    handler: api_config_handler_schema.returns(api_config_http_handler_return_schema),
-  })
-  .merge(api_config_base_schema);
-
-const api_config_queue_handler_return_object_schema = z.object({
-  // TODO correlationId
-  statusCode: z.number(), // TODO better
-  data: z.any(),
-});
-
-export const api_config_queue_data_schema = z.object({
-  params: z.record(z.string()).optional(),
-  query: z.record(z.string()).optional(),
-  headers: z.record(z.string()).optional(),
-  body: z.unknown().optional(),
-});
-
-export const api_config_queue_handler_return_schema =
-  api_config_queue_handler_return_object_schema.or(
-    api_config_queue_handler_return_object_schema.promise()
-  );
-
-export const api_config_queue_schema = z
-  .object({
-    handler: api_config_handler_schema.returns(api_config_queue_handler_return_schema),
-    type: z.literal('queue'),
-    queue: z.string(),
-  })
-  .merge(api_config_base_schema);
-
-export const api_config_schema = z.discriminatedUnion('type', [
-  api_config_http_schema,
-  api_config_queue_schema,
-]);
-
-export type ApiConfigInput = z.input<typeof api_config_schema>;
-
+/**
+ * @description TODO
+ * @param config
+ */
 export function httpConfig<
   Params extends ZodObject<Record<string, ZodString>>,
   Query extends ZodObject<Record<string, ZodString>>,
@@ -83,13 +51,15 @@ export function httpConfig<
   Body extends ZodType,
   Response extends ZodType
 >(
-  config: Except<ApiConfigInput, 'handler' | 'request' | 'response' | 'imports'> & {
-    handler: (request: {
-      params: z.infer<Params>;
-      query: z.infer<Query>;
-      headers: z.infer<Headers>;
-      body?: z.infer<Body>;
-    }) =>
+  config: Except<HttpConfigInput, 'handler' | 'request' | 'response' | 'imports'> & {
+    handler: (
+      request: {
+        params: z.infer<Params>;
+        query: z.infer<Query>;
+        headers: z.infer<Headers>;
+        body?: z.infer<Body>;
+      } /*services-args*/
+    ) =>
       | { statusCode: number; data: z.input<Response> }
       | Promise<{ statusCode: number; data: z.input<Response> }>;
     request: {
@@ -99,10 +69,10 @@ export function httpConfig<
       body?: Body;
     };
     response: Response;
-    imports?: [];
+    imports?: [/*services-imports*/];
   }
-): ApiConfigInput {
+): HttpConfigInput {
   return config;
 }
 
-export { ApiConfigInput as ApiConfig };
+export { HttpConfigInput as HttpConfig };

@@ -6,55 +6,133 @@ spawnSync('npx rome', ['format --write dist/index.d.ts'], {
   shell: true,
 });
 
+const QUEUE_START_FUNCTION = 'declare function queueConfig<';
+const QUEUE_END_FUNCTION = '): QueueConfigInput;';
+const QUEUE_GENERICS = ', Response extends ZodType';
+const QUEUE_HANDLER_ARGS = 'request: z.infer<Request>';
+const QUEUE_HANDLER_IMPORTS = 'imports?: [];';
+
+const HTTP_START_FUNCTION = 'declare function httpConfig<';
+const HTTP_END_FUNCTION = '): HttpConfigInput;';
+const HTTP_GENERICS = 'Response extends ZodType';
+const HTTP_HANDLER_ARGS = '}) =>';
+const HTTP_HANDLER_IMPORTS = 'imports?: [];';
+
 const file = await readFile('dist/index.d.ts', { encoding: 'utf-8' });
+
+let QUEUE_FUNCTION_ARRAY: string[] = [];
+let QUEUE_END_FUNCTION_INDEX = -1;
+let HTTP_FUNCTION_ARRAY: string[] = [];
+let HTTP_END_FUNCTION_INDEX = -1;
+
+let PASSING_QUEUE = false;
+let PASSING_HTTP = false;
+
 const lines = file.split('\n');
 
-const start_line_index = lines.findIndex((item) =>
-  item.includes('declare function httpConfig<')
-);
-const end_function_index = lines.findIndex((item) => item.includes('): ApiConfigInput;'));
-
-const function_def_lines = lines.filter(
-  (_, index) => index >= start_line_index && index <= end_function_index
-);
-const generics_end_index = function_def_lines.findIndex((item) =>
-  item.includes('Service1 extends Class<unknown>')
-);
-const services_last_parameter_index = function_def_lines.findIndex((item) =>
-  item.includes('service1: InstanceType<Service1>')
-);
-const service_imports_index = function_def_lines.findIndex((item) =>
-  item.includes('imports?: [Service1];')
-);
-
-const SERVICE_NUMBER_OFFSET = 2;
-
-// TODO redo this because files have changed
-
-function createNewFunction(number_of_services: number): string[] {
-  const def_lines = [...function_def_lines];
-  for (let index = 0; index < number_of_services; index++) {
-    const service_number = index + SERVICE_NUMBER_OFFSET;
-    def_lines[
-      generics_end_index
-    ] = `${def_lines[generics_end_index]}, Service${service_number} extends Class<unknown>`;
-    def_lines[
-      services_last_parameter_index
-    ] = `${def_lines[services_last_parameter_index]},service${service_number}: InstanceType<Service${service_number}>`;
-    def_lines[service_imports_index] = `${def_lines[service_imports_index].slice(
-      0,
-      def_lines[service_imports_index].length - SERVICE_NUMBER_OFFSET
-    )}, Service${service_number}];`;
+for (let index = 0; index < lines.length; index++) {
+  const line = lines[index];
+  if (line.includes(QUEUE_START_FUNCTION)) {
+    PASSING_QUEUE = true;
   }
-  return def_lines;
+  if (line.includes(HTTP_START_FUNCTION)) {
+    PASSING_HTTP = true;
+  }
+  if (PASSING_QUEUE) {
+    QUEUE_FUNCTION_ARRAY.push(line);
+  }
+  if (PASSING_HTTP) {
+    HTTP_FUNCTION_ARRAY.push(line);
+  }
+  if (line.includes(QUEUE_END_FUNCTION)) {
+    PASSING_QUEUE = false;
+    QUEUE_END_FUNCTION_INDEX = index;
+  }
+  if (line.includes(HTTP_END_FUNCTION)) {
+    PASSING_HTTP = false;
+    HTTP_END_FUNCTION_INDEX = index;
+  }
 }
 
-const new_lines = Array.from({ length: 29 }, (_, index) =>
-  createNewFunction(index + 1)
-).flat();
-lines.splice(end_function_index + 1, 0, ...new_lines);
+function create_queue_declaration(serviceNumber: number): string[] {
+  const newLines = [...QUEUE_FUNCTION_ARRAY];
+  return newLines.map((line) => {
+    if (line.includes(QUEUE_GENERICS)) {
+      line = line.replace(
+        QUEUE_GENERICS,
+        `${QUEUE_GENERICS}, ${Array.from(
+          { length: serviceNumber },
+          (_, index) => `Service_${index}`
+        ).join(',')}`
+      );
+    }
+    if (line.includes(QUEUE_HANDLER_IMPORTS)) {
+      line = line.replace(
+        QUEUE_HANDLER_IMPORTS,
+        `imports: [${Array.from(
+          { length: serviceNumber },
+          (_, index) => `Provide<Service_${index}>`
+        ).join(`,`)}]`
+      );
+    }
+    if (line.includes(QUEUE_HANDLER_ARGS)) {
+      line +=
+        ',' +
+        Array.from(
+          { length: serviceNumber },
+          (_, index) => `service_${index}: Service_${index}`
+        ).join(`,`);
+    }
+    return line;
+  });
+}
 
-await writeFile('dist/index.d.ts', lines.join('\n'));
+function create_http_declaration(serviceNumber: number): string[] {
+  const newLines = [...HTTP_FUNCTION_ARRAY];
+  return newLines.map((line) => {
+    if (line.includes(HTTP_GENERICS)) {
+      line = line.replace(
+        HTTP_GENERICS,
+        `${HTTP_GENERICS}, ${Array.from(
+          { length: serviceNumber },
+          (_, index) => `Service_${index}`
+        ).join(',')}`
+      );
+    }
+    if (line.includes(HTTP_HANDLER_IMPORTS)) {
+      line = line.replace(
+        HTTP_HANDLER_IMPORTS,
+        `imports: [${Array.from(
+          { length: serviceNumber },
+          (_, index) => `Provide<Service_${index}>`
+        ).join(`,`)}]`
+      );
+    }
+    if (line.includes(HTTP_HANDLER_ARGS)) {
+      line = line.replace(
+        HTTP_HANDLER_ARGS,
+        `}, ${Array.from(
+          { length: serviceNumber },
+          (_, index) => `service_${index}: Service_${index}`
+        ).join(`,`)}) =>`
+      );
+    }
+    return line;
+  });
+}
+
+const new_queue_lines = Array.from({ length: 30 }, (_, index) =>
+  create_queue_declaration(index + 1)
+).flat();
+const new_http_lines = Array.from({ length: 30 }, (_, index) =>
+  create_http_declaration(index + 1)
+).flat();
+
+const new_lines = [`import { type Provide } from '@stlmpp/di';`, ...lines];
+new_lines.splice(HTTP_END_FUNCTION_INDEX + 2, 0, ...new_http_lines);
+new_lines.splice(QUEUE_END_FUNCTION_INDEX + 2, 0, ...new_queue_lines);
+
+await writeFile('dist/index.d.ts', new_lines.join('\n'));
 
 spawnSync('npx rome', ['format --write dist/index.d.ts'], {
   stdio: 'inherit',

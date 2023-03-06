@@ -3,7 +3,7 @@ import { type RequestHandler } from 'express';
 
 import { format_headers } from './format-headers.js';
 import { format_query } from './format-query.js';
-import { api_config_http_schema, type ApiConfig } from './http-config.js';
+import { http_config_schema, type HttpConfig } from './http-config.js';
 import { method_has_body } from './method-has-body.js';
 
 interface InternalHttpHandler {
@@ -24,11 +24,11 @@ function parse_path(path: string) {
 }
 
 export async function get_http_handler(
-  unparsed_config: ApiConfig,
+  unparsed_config: HttpConfig,
   path: string,
   injector: Injector
 ): Promise<InternalHttpHandler> {
-  const parsed_config = await api_config_http_schema.safeParseAsync(unparsed_config);
+  const parsed_config = await http_config_schema.safeParseAsync(unparsed_config);
   if (!parsed_config.success) {
     throw new Error(`${path} has invalid config`); // TODO better error message
   }

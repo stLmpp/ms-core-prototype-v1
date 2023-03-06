@@ -11,7 +11,7 @@ function rimrafPlugin(): NonNullable<Options['plugins']>[number] {
 }
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/core/index.ts'],
   bundle: true,
   dts: true,
   format: 'esm',

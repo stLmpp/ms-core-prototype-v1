@@ -1,6 +1,6 @@
-import { type ApiConfig } from './http-config.js';
+import { type HttpConfig } from './http-config.js';
 
 export interface HttpEndPoint {
-  config: ApiConfig;
+  config: HttpConfig;
   path: string;
 }
