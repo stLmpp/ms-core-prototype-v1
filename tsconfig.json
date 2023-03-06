@@ -12,6 +12,8 @@
     "skipDefaultLibCheck": true,
     "useUnknownInCatchVariables": false,
     "baseUrl": ".",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   }
 }

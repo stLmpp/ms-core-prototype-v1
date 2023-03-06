@@ -7,5 +7,8 @@ export default queueConfig({
   response: z.object({
     id: z.number(),
   }),
-  handler: () => ({ id: 1 }),
+  handler: (request) => {
+    console.log('cm-event-handler received', request);
+    return { id: 1 };
+  },
 });

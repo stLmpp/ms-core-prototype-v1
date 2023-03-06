@@ -9,6 +9,7 @@ import { method_has_body } from './method-has-body.js';
 interface InternalHttpHandler {
   end_point: string;
   handler: RequestHandler;
+  method: string;
 }
 
 function parse_path(path: string) {
@@ -36,7 +37,8 @@ export async function get_http_handler(
   const { end_point, method } = parse_path(path);
   const services = await injector.resolveMany(config.imports ?? []);
   return {
-    end_point, // TODO end-point
+    method,
+    end_point,
     handler: async (req, res, next) => {
       if (req.method.toLowerCase() !== method) {
         next();

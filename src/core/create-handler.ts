@@ -22,8 +22,8 @@ export async function createHttpHandler(
       end_point_b.split('/').length - end_point_a.split('/').length
   );
   const router = Router();
-  for (const { handler, end_point } of handlers) {
-    console.log(`Registering end-point: ${end_point}`);
+  for (const { handler, end_point, method } of handlers) {
+    console.log(`Registering end-point: [${method.toUpperCase()}] ${end_point}`);
     router.use(end_point, handler);
   }
   return https.onRequest(express().use(json()).use(router));

@@ -20,9 +20,9 @@ const HTTP_HANDLER_IMPORTS = 'imports?: [];';
 
 const file = await readFile('dist/index.d.ts', { encoding: 'utf-8' });
 
-let QUEUE_FUNCTION_ARRAY: string[] = [];
+const QUEUE_FUNCTION_ARRAY: string[] = [];
 let QUEUE_END_FUNCTION_INDEX = -1;
-let HTTP_FUNCTION_ARRAY: string[] = [];
+const HTTP_FUNCTION_ARRAY: string[] = [];
 let HTTP_END_FUNCTION_INDEX = -1;
 
 let PASSING_QUEUE = false;
@@ -128,9 +128,11 @@ const new_http_lines = Array.from({ length: 30 }, (_, index) =>
   create_http_declaration(index + 1)
 ).flat();
 
+const INDEX_OFFSET = 2;
+
 const new_lines = [`import { type Provide } from '@stlmpp/di';`, ...lines];
-new_lines.splice(HTTP_END_FUNCTION_INDEX + 2, 0, ...new_http_lines);
-new_lines.splice(QUEUE_END_FUNCTION_INDEX + 2, 0, ...new_queue_lines);
+new_lines.splice(HTTP_END_FUNCTION_INDEX + INDEX_OFFSET, 0, ...new_http_lines);
+new_lines.splice(QUEUE_END_FUNCTION_INDEX + INDEX_OFFSET, 0, ...new_queue_lines);
 
 await writeFile('dist/index.d.ts', new_lines.join('\n'));
 

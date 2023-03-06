@@ -1,15 +1,18 @@
-import { PubSub } from '@google-cloud/pubsub';
 import { z } from 'zod';
 
 import { httpConfig } from '../core/index.js';
+import { PubSub } from '../core/pubsub.js';
 
 export default httpConfig({
   request: {},
   response: z.undefined(),
-  handler: async () => {
-    const pubsubClient = new PubSub();
+  imports: [PubSub],
+  handler: async (_, pubsubClient) => {
     console.log('posting to index');
     await pubsubClient.topic('index').publishMessage({
+      json: {},
+    });
+    await pubsubClient.topic('cm-event-handler').publishMessage({
       json: {},
     });
     return {

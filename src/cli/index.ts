@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { writeFile, copyFile } from 'node:fs/promises';
+import { copyFile, rm, writeFile } from 'node:fs/promises';
 
 import { watch } from 'chokidar';
 import { build } from 'esbuild';
@@ -16,7 +16,7 @@ async function generate_index() {
     fastGlob(GLOB_QUEUE),
   ]);
   const fileContent = `import { Injector } from '@stlmpp/di';
-import { createHttpHandler, createQueueHandler } from './core/create-http-handler.js';
+import { createHttpHandler, createQueueHandler } from './core/create-handler.js';
 ${http_paths
   .map(
     (http_path, index) =>
@@ -57,6 +57,7 @@ export {api, ${queue_paths.map((_, index) => `queue_${index}_handler`)}};
     plugins: [nodeExternalsPlugin()],
   });
   await copyFile('package.json', 'dist/package.json');
+  await rm('src/main.ts', { force: true, recursive: true });
 }
 
 const watcher = watch(['src/core/**/*', 'src/http/**/*', 'src/queue/*']);
@@ -72,12 +73,14 @@ spawn('firebase emulators:start --only functions,pubsub', {
   shell: true,
 });
 
+const DEBOUNCE_TIME_MS = 200;
+
 update$
   .pipe(
-    debounceTime(200),
+    debounceTime(DEBOUNCE_TIME_MS),
     skip(1),
     switchMap(async () => {
-      console.log('event');
+      console.log('Changes detected, regenerating files');
       await generate_index();
     })
   )
