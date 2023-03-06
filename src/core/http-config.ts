@@ -23,7 +23,6 @@ export const api_config_http_handler_return_schema =
   );
 
 export const http_config_schema = z.object({
-  type: z.literal('http'),
   handler: api_config_handler_schema.returns(api_config_http_handler_return_schema),
   request: z
     .object({
@@ -52,14 +51,12 @@ export function httpConfig<
   Response extends ZodType
 >(
   config: Except<HttpConfigInput, 'handler' | 'request' | 'response' | 'imports'> & {
-    handler: (
-      request: {
-        params: z.infer<Params>;
-        query: z.infer<Query>;
-        headers: z.infer<Headers>;
-        body?: z.infer<Body>;
-      } /*services-args*/
-    ) =>
+    handler: (request: {
+      params: z.infer<Params>;
+      query: z.infer<Query>;
+      headers: z.infer<Headers>;
+      body?: z.infer<Body>;
+    }) =>
       | { statusCode: number; data: z.input<Response> }
       | Promise<{ statusCode: number; data: z.input<Response> }>;
     request: {
@@ -69,7 +66,7 @@ export function httpConfig<
       body?: Body;
     };
     response: Response;
-    imports?: [/*services-imports*/];
+    imports?: [];
   }
 ): HttpConfigInput {
   return config;

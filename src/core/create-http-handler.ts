@@ -1,6 +1,6 @@
 import { type Injector } from '@stlmpp/di';
-import express, { type Express, json, Router } from 'express';
-import { type CloudFunction } from 'firebase-functions';
+import express, { json, Router } from 'express';
+import { type CloudFunction, https, type HttpsFunction } from 'firebase-functions';
 import { type Message } from 'firebase-functions/v1/pubsub';
 
 import { get_http_handler } from './get_http_handler.js';
@@ -11,7 +11,7 @@ import { type Queue } from './queue.type.js';
 export async function createHttpHandler(
   end_points: HttpEndPoint[],
   injector: Injector
-): Promise<Express> {
+): Promise<HttpsFunction> {
   let handlers = await Promise.all(
     end_points.map((http_end_point) =>
       get_http_handler(http_end_point.config, http_end_point.path, injector)
@@ -26,7 +26,7 @@ export async function createHttpHandler(
     console.log(`Registering end-point: ${end_point}`);
     router.use(end_point, handler);
   }
-  return express().use(json()).use(router);
+  return https.onRequest(express().use(json()).use(router));
 }
 
 export async function createQueueHandler(

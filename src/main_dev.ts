@@ -21,25 +21,3 @@ export const queue_1_handler = await createQueueHandler(
   { path: queue_1_path, config: queue_1 },
   injector
 );
-
-class Service1 {
-  id1 = 1;
-}
-
-class Service2 {
-  id2 = 2;
-}
-
-import { queueConfig } from '../dist/index.js';
-import { z } from 'zod';
-queueConfig({
-  request: z.object({
-    id: z.number(),
-  }),
-  response: z.object({}),
-  imports: [Service1, Service2],
-  handler: (request, service1, service2) => {
-    service2.id2;
-    return {};
-  },
-});

@@ -3,11 +3,14 @@ import { z } from 'zod';
 import { httpConfig } from '../core/http-config.js';
 
 export default httpConfig({
-  type: 'http',
   request: {},
-  response: z.object({}),
+  response: z.object({
+    id: z.number(),
+  }),
   handler: () => ({
     statusCode: 200,
-    data: {},
+    data: {
+      id: 1,
+    },
   }),
 });

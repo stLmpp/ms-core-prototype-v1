@@ -1,11 +1,14 @@
-import { writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { writeFile, copyFile } from 'node:fs/promises';
 
+import { watch } from 'chokidar';
 import { build } from 'esbuild';
 import { nodeExternalsPlugin } from 'esbuild-node-externals';
 import fastGlob from 'fast-glob';
+import { debounceTime, skip, Subject, switchMap } from 'rxjs';
 
 const GLOB_HTTP = 'src/http/**/{GET,POST,PUT,PATCH,DELETE}.ts';
-const GLOB_QUEUE = 'src/queue/**/*.ts';
+const GLOB_QUEUE = 'src/queue/*.ts';
 
 async function generate_index() {
   const [http_paths, queue_paths] = await Promise.all([
@@ -13,49 +16,39 @@ async function generate_index() {
     fastGlob(GLOB_QUEUE),
   ]);
   const fileContent = `import { Injector } from '@stlmpp/di';
-
 import { createHttpHandler, createQueueHandler } from './core/create-http-handler.js';
-import { type HttpEndPoint } from './core/http-end-point.type.js';
-
 ${http_paths
   .map(
     (http_path, index) =>
-      `import path_${index} from '${http_path.replace(/\.ts$/, '.js')}';`
+      `import path_${index} from '${http_path.replace(/\.ts$/, '.js')}'`
   )
-  .join('\n')}
+  .join(';')};
 ${queue_paths
   .map(
     (queue_path, index) =>
-      `import queue_${index} from '${queue_path.replace(/\.ts$/, '.js')}';`
+      `import queue_${index} from '${queue_path.replace(/\.ts$/, '.js')}'`
   )
-  .join('\n')}
-
+  .join(';')};
+const injector = Injector.create('Main'),
+[api,
+${queue_paths.map((_, index) => `queue_${index}_handler`).join(`,`)}
+] = await Promise.all([createHttpHandler([
+${http_paths
+  .map((http_path, index) => `{config:path_${index},path:'${http_path}'}`)
+  .join(',')}], injector),
 ${queue_paths
   .map(
     (queue_path, index) =>
-      `const queue_${index}_path = '${queue_path.replace(/\.ts$/, '.js')}';`
+      `createQueueHandler({path:'${queue_path}',config:queue_${index}}, injector)`
   )
-  .join('\n')}
-const http_end_points: HttpEndPoint[] = [
-  ${http_paths
-    .map((http_path, index) => `{ config: path_${index}, path: '${http_path}' },`)
-    .join('\n  ')}
-];
-const injector = Injector.create('Main');
-export const api = await createHttpHandler(http_end_points, injector);
-${queue_paths
-  .map(
-    (queue_path, index) => `export const queue_${index}_handler = createQueueHandler(
-  { path: queue_${index}_path, config: queue_${index} },
-  injector
-);`
-  )
-  .join('\n')}
+  .join(',')}
+]);
+export {api, ${queue_paths.map((_, index) => `queue_${index}_handler`)}};
 `;
   await writeFile('src/main.ts', fileContent);
   await build({
     entryPoints: ['src/main.ts'],
-    outfile: 'src/main.js',
+    outfile: 'dist/main.js',
     sourcemap: 'inline',
     bundle: true,
     format: 'esm',
@@ -63,6 +56,29 @@ ${queue_paths
     minify: true,
     plugins: [nodeExternalsPlugin()],
   });
+  await copyFile('package.json', 'dist/package.json');
 }
 
-generate_index();
+const watcher = watch(['src/core/**/*', 'src/http/**/*', 'src/queue/*']);
+const update$ = new Subject<void>();
+
+watcher.on('all', async () => {
+  update$.next();
+});
+
+await generate_index();
+spawn('firebase emulators:start --only functions,pubsub', {
+  stdio: 'inherit',
+  shell: true,
+});
+
+update$
+  .pipe(
+    debounceTime(200),
+    skip(1),
+    switchMap(async () => {
+      console.log('event');
+      await generate_index();
+    })
+  )
+  .subscribe();

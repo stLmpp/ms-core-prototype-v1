@@ -38,3 +38,8 @@ yarn-error.log*
 
 # dist
 dist
+
+ui-debug.log
+firepit-log.txt
+pubsub-debug.log
+firebase-debug.log
